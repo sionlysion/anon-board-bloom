@@ -1,12 +1,31 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useEffect } from "react";
+import Board from "@/components/Board";
+import Header from "@/components/Header";
+import $ from "@/lib/jquery";
 
 const Index = () => {
+  useEffect(() => {
+    // Example of using jQuery
+    $(document).ready(function() {
+      console.log("jQuery is working! Document is ready");
+      
+      // You can use jQuery for DOM manipulation here
+      $("body").on("click", ".greentext", function() {
+        console.log("Greentext clicked:", $(this).text());
+      });
+    });
+  }, []);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
+    <div className="container mx-auto max-w-4xl px-4 py-2">
+      <Header />
+      <main>
+        <Board />
+      </main>
+      <footer className="mt-8 mb-4 text-center text-xs text-muted-foreground">
+        <p>AnonBoard © 2025 - A simple 4chan-inspired message board</p>
+      </footer>
     </div>
   );
 };
