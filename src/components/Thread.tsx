@@ -10,7 +10,6 @@ export interface PostData {
   name: string;
   timestamp: string;
   isOP?: boolean;
-  replies?: PostData[];
 }
 
 interface ThreadProps {
@@ -24,6 +23,7 @@ interface ThreadProps {
 const Thread: React.FC<ThreadProps> = ({ thread }) => {
   const [expanded, setExpanded] = useState(true);
   const [showReplyForm, setShowReplyForm] = useState(false);
+  const [posts, setPosts] = useState<PostData[]>(thread.posts || []);
 
   const toggleExpand = () => {
     setExpanded(!expanded);
@@ -33,10 +33,15 @@ const Thread: React.FC<ThreadProps> = ({ thread }) => {
     setShowReplyForm(!showReplyForm);
   };
 
-  const op = thread.posts.find(post => post.isOP) || thread.posts[0];
+  const handleReplyCreated = (newPost: PostData) => {
+    setPosts(prev => [...prev, newPost]);
+    setShowReplyForm(false);
+  };
+
+  const op = posts.find(post => post.isOP) || posts[0];
 
   return (
-    <div className="thread">
+    <div className="thread border border-border p-4 rounded-md bg-card/50">
       <div className="thread-header flex justify-between items-center mb-2">
         <div className="flex items-center gap-2">
           <button 
@@ -47,7 +52,7 @@ const Thread: React.FC<ThreadProps> = ({ thread }) => {
           </button>
           <span className="font-bold">
             {thread.title || "Anonymous Thread"} 
-            <span className="text-muted-foreground">#{thread.id}</span>
+            <span className="text-muted-foreground ml-2">#{thread.id}</span>
           </span>
         </div>
         <button 
@@ -62,12 +67,13 @@ const Thread: React.FC<ThreadProps> = ({ thread }) => {
         {showReplyForm && (
           <ReplyForm 
             threadId={thread.id} 
-            onCancel={() => setShowReplyForm(false)} 
+            onCancel={() => setShowReplyForm(false)}
+            onReplyCreated={handleReplyCreated}
           />
         )}
         
-        <div className="posts">
-          {thread.posts.map((post) => (
+        <div className="posts space-y-4">
+          {posts.map((post) => (
             <Post 
               key={post.id} 
               post={post} 

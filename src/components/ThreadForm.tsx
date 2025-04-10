@@ -3,28 +3,92 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { useDb } from "@/lib/DbContext";
+import { useToast } from "@/components/ui/use-toast";
+import { PostData } from "./Thread";
 
 interface ThreadFormProps {
   onCancel: () => void;
+  boardType?: "random" | "technology" | "anime";
+  onThreadCreated?: (thread: { id: string, title: string, posts: PostData[] }) => void;
 }
 
-const ThreadForm: React.FC<ThreadFormProps> = ({ onCancel }) => {
+const ThreadForm: React.FC<ThreadFormProps> = ({ onCancel, boardType = "random", onThreadCreated }) => {
   const [name, setName] = useState("");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  
+  const { createThread, getThreadWithPosts } = useDb();
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Thread submitted:", { name, title, content });
-    
-    // In a real app, this would send data to the server
-    // and update the state with the new thread
-    
-    // Reset form and close
-    setName("");
-    setTitle("");
-    setContent("");
-    onCancel();
+    if (!content.trim()) {
+      toast({
+        title: "Error",
+        description: "Content cannot be empty",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const threadId = await createThread(
+        title.trim() || "Anonymous Thread",
+        name.trim() || "Anonymous",
+        content
+      );
+      
+      if (threadId) {
+        toast({
+          title: "Success",
+          description: "Thread created successfully",
+        });
+        
+        // Get the created thread with posts
+        if (onThreadCreated) {
+          const threadData = await getThreadWithPosts(threadId);
+          if (threadData) {
+            onThreadCreated({
+              id: threadData.thread.id,
+              title: threadData.thread.title,
+              posts: threadData.posts.map(post => ({
+                id: post.id,
+                content: post.content,
+                name: post.name,
+                timestamp: post.timestamp,
+                isOP: post.is_op
+              }))
+            });
+          }
+        }
+        
+        // Reset form
+        setName("");
+        setTitle("");
+        setContent("");
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to create thread",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error creating thread:", error);
+      toast({
+        title: "Error",
+        description: "An error occurred while creating the thread",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmitting(false);
+      if (!onThreadCreated) {
+        onCancel();
+      }
+    }
   };
 
   return (
@@ -61,10 +125,13 @@ const ThreadForm: React.FC<ThreadFormProps> = ({ onCancel }) => {
           variant="outline" 
           size="sm"
           onClick={onCancel}
+          disabled={submitting}
         >
           Cancel
         </Button>
-        <Button type="submit" size="sm">Create Thread</Button>
+        <Button type="submit" size="sm" disabled={submitting}>
+          {submitting ? "Creating..." : "Create Thread"}
+        </Button>
       </div>
     </form>
   );

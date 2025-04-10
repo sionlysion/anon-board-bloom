@@ -1,65 +1,81 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Thread from "./Thread";
 import ThreadForm from "./ThreadForm";
 import { Button } from "@/components/ui/button";
+import { useDb } from "@/lib/DbContext";
+import { Thread as ThreadType } from "@/lib/db";
+import { useToast } from "@/components/ui/use-toast";
 
-// Mock data for initial threads
-const MOCK_THREADS = [
-  {
-    id: "12345678",
-    title: "Welcome to Anon Board",
-    posts: [
-      {
-        id: "12345678",
-        name: "Admin",
-        content: "Welcome to Anon Board! This is a simple 4chan-like message board.\n\nRules:\n>Be respectful\n>No illegal content\n>Have fun!",
-        timestamp: "04/10/25(Fri)12:34:56",
-        isOP: true,
-      },
-      {
-        id: "12345679",
-        name: "",
-        content: "First reply. How does this work?",
-        timestamp: "04/10/25(Fri)12:35:23",
-      },
-      {
-        id: "12345680",
-        name: "Helper",
-        content: ">>12345679\nJust like that! You can reply to posts using the format >>postID.",
-        timestamp: "04/10/25(Fri)12:37:45",
-      },
-    ],
-  },
-  {
-    id: "12345681",
-    title: "Thread about cats",
-    posts: [
-      {
-        id: "12345681",
-        name: "Cat Lover",
-        content: "What's your favorite cat breed? Mine is Scottish Fold.",
-        timestamp: "04/10/25(Fri)14:22:31",
-        isOP: true,
-      },
-      {
-        id: "12345682",
-        name: "",
-        content: ">not liking Maine Coons\nAnon, I...",
-        timestamp: "04/10/25(Fri)14:25:12",
-      },
-    ],
-  },
-];
+interface BoardProps {
+  boardType?: "random" | "technology" | "anime";
+}
 
-const Board: React.FC = () => {
-  const [threads, setThreads] = useState(MOCK_THREADS);
+const Board: React.FC<BoardProps> = ({ boardType = "random" }) => {
+  const [threads, setThreads] = useState<ThreadType[]>([]);
   const [showThreadForm, setShowThreadForm] = useState(false);
+  const { loadThreads, getThreadWithPosts } = useDb();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+
+  // Load threads for this board
+  useEffect(() => {
+    const fetchThreads = async () => {
+      setLoading(true);
+      try {
+        const boardThreads = await loadThreads(boardType);
+        
+        // For each thread, load its posts
+        const threadsWithPosts = await Promise.all(
+          boardThreads.map(async (thread) => {
+            const threadData = await getThreadWithPosts(thread.id);
+            if (!threadData) return null;
+            
+            return {
+              id: thread.id,
+              title: thread.title,
+              posts: threadData.posts.map(post => ({
+                id: post.id,
+                content: post.content,
+                name: post.name,
+                timestamp: post.timestamp,
+                isOP: post.is_op
+              }))
+            };
+          })
+        );
+        
+        setThreads(threadsWithPosts.filter(Boolean) as any);
+      } catch (error) {
+        console.error("Error loading threads:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load threads",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchThreads();
+  }, [boardType]);
+
+  const getBoardTitle = () => {
+    switch (boardType) {
+      case "technology":
+        return "/g/ - Technology";
+      case "anime":
+        return "/a/ - Anime";
+      default:
+        return "/b/ - Random";
+    }
+  };
 
   return (
     <div className="board">
       <div className="board-header flex justify-between items-center mb-4">
-        <h1 className="text-lg font-bold">/b/ - Random</h1>
+        <h1 className="text-lg font-bold">{getBoardTitle()}</h1>
         <Button 
           onClick={() => setShowThreadForm(!showThreadForm)}
           variant="secondary"
@@ -70,13 +86,26 @@ const Board: React.FC = () => {
       </div>
 
       {showThreadForm && (
-        <ThreadForm onCancel={() => setShowThreadForm(false)} />
+        <ThreadForm 
+          onCancel={() => setShowThreadForm(false)} 
+          boardType={boardType}
+          onThreadCreated={(newThread) => {
+            setThreads(prev => [newThread, ...prev]);
+            setShowThreadForm(false);
+          }}
+        />
       )}
 
-      <div className="threads">
-        {threads.map((thread) => (
-          <Thread key={thread.id} thread={thread} />
-        ))}
+      <div className="threads space-y-8">
+        {loading ? (
+          <div className="text-center py-10">Loading threads...</div>
+        ) : threads.length > 0 ? (
+          threads.map((thread) => (
+            <Thread key={thread.id} thread={thread} />
+          ))
+        ) : (
+          <div className="text-center py-10">No threads found. Be the first to create one!</div>
+        )}
       </div>
     </div>
   );
