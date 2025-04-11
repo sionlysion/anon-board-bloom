@@ -4,15 +4,22 @@ import Thread from "./Thread";
 import ThreadForm from "./ThreadForm";
 import { Button } from "@/components/ui/button";
 import { useDb } from "@/lib/DbContext";
-import { Thread as ThreadType } from "@/lib/db";
+import { Thread as ThreadType, Post as PostType } from "@/lib/db";
 import { useToast } from "@/components/ui/use-toast";
+import { PostData } from "./Thread";
+
+interface BoardThreadType {
+  id: string;
+  title?: string;
+  posts: PostData[];
+}
 
 interface BoardProps {
   boardType?: "random" | "technology" | "anime";
 }
 
 const Board: React.FC<BoardProps> = ({ boardType = "random" }) => {
-  const [threads, setThreads] = useState<ThreadType[]>([]);
+  const [threads, setThreads] = useState<BoardThreadType[]>([]);
   const [showThreadForm, setShowThreadForm] = useState(false);
   const { loadThreads, getThreadWithPosts } = useDb();
   const { toast } = useToast();
@@ -45,7 +52,7 @@ const Board: React.FC<BoardProps> = ({ boardType = "random" }) => {
           })
         );
         
-        setThreads(threadsWithPosts.filter(Boolean) as any);
+        setThreads(threadsWithPosts.filter(Boolean) as BoardThreadType[]);
       } catch (error) {
         console.error("Error loading threads:", error);
         toast({

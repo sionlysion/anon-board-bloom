@@ -85,9 +85,13 @@ class DatabaseService {
 
     // Check if data already exists
     const result = this.db.exec("SELECT COUNT(*) FROM threads");
-    if (result.length > 0 && result[0].values[0][0] > 0) {
-      console.log("Initial data already exists, skipping insertion");
-      return;
+    if (result.length > 0) {
+      const count = result[0].values[0][0];
+      // Compare as string since SQLite returns a string
+      if (String(count) !== "0") {
+        console.log("Initial data already exists, skipping insertion");
+        return;
+      }
     }
 
     // Sample threads and posts
